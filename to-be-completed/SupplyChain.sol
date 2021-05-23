@@ -4,7 +4,7 @@
     https://solidity.readthedocs.io/en/v0.5.0/050-breaking-changes.html
 */
 
-pragma solidity ^0.5.0;
+pragma solidity ^0.6.0;
 
 contract SupplyChain {
 
@@ -12,10 +12,13 @@ contract SupplyChain {
   address owner;
 
   /* Add a variable called skuCount to track the most recent sku # */
+  uint public skuCount;
 
   /* Add a line that creates a public mapping that maps the SKU (a number) to an Item.
      Call this mappings items
   */
+  
+  mapping(uint=>Item) items;
 
   /* Add a line that creates an enum called State. This should have 4 states
     ForSale
@@ -24,6 +27,12 @@ contract SupplyChain {
     Received
     (declaring them in this order is important for testing)
   */
+  enum State{
+      ForSale,
+      Sold,
+      Shipped,
+      Received
+  }
 
   /* Create a struct named Item.
     Here, add a name, sku, price, state, seller, and buyer
@@ -31,12 +40,30 @@ contract SupplyChain {
     if you need help you can ask around :)
     Be sure to add "payable" to addresses that will be handling value transfer
   */
+  
+  struct Item{
+      string name;
+      uint price;
+      State state;
+      address payable seller;
+      address payable buyer;
+      
+  }
 
   /* Create 4 events with the same name as each possible State (see above)
     Prefix each event with "Log" for clarity, so the forSale event will be called "LogForSale"
     Each event should accept one argument, the sku */
+    
+    event LogForSale(uint sku);
+    event LogSold(uint sku);
+    event LogShipped(uint sku);
+    event LogReceived(uint sku);
 
 /* Create a modifer that checks if the msg.sender is the owner of the contract */
+ modifier onlyOwner(){ 
+        require( msg.sender == owner, "Only owner can call this."); 
+        _;
+      }
 
   modifier verifyCaller (address _address) { require (msg.sender == _address); _;}
 
@@ -56,15 +83,29 @@ contract SupplyChain {
    so checking that Item.State == ForSale is not sufficient to check that an Item is for sale.
    Hint: What item properties will be non-zero when an Item has been added?
    */
-  modifier forSale
-  modifier sold
-  modifier shipped
-  modifier received
+ modifier forSale(){ 
+        require( items[skuCount].state == 0, "The item is not for sale"); 
+        _;
+      }
+  modifier sold(){ 
+    require( items[skuCount].state == 1, "The item is not sold"); 
+    _;
+  }
+  modifier shipped(){ 
+    require( items[skuCount].state == 2, "The item is not shipped"); 
+    _;
+  }
+  modifier received(){ 
+    require( items[skuCount].state == 3, "The item is not received"); 
+    _;
+  }
 
 
   constructor() public {
     /* Here, set the owner as the person who instantiated the contract
        and set your skuCount to 0. */
+        owner = msg.sender;
+        skuCount=0;
   }
 
   function addItem(string memory _name, uint _price) public returns(bool){
