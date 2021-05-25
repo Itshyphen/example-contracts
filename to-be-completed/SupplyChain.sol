@@ -1,8 +1,4 @@
-/*
-    This exercise has been updated to use Solidity version 0.5
-    Breaking changes from 0.4 to 0.5 can be found here: 
-    https://solidity.readthedocs.io/en/v0.5.0/050-breaking-changes.html
-*/
+
 
 pragma solidity ^0.6.0;
 
@@ -43,6 +39,7 @@ contract SupplyChain {
   
   struct Item{
       string name;
+      uint sku;
       uint price;
       State state;
       address payable seller;
@@ -84,21 +81,22 @@ contract SupplyChain {
    Hint: What item properties will be non-zero when an Item has been added?
    */
  modifier forSale(){ 
-        require( items[skuCount].state == 0, "The item is not for sale"); 
+        require( items[skuCount].state == State.ForSale, "The item is not for sale"); 
         _;
       }
   modifier sold(){ 
-    require( items[skuCount].state == 1, "The item is not sold"); 
+    require( items[skuCount].state == State.Sold, "The item is not sold"); 
     _;
   }
   modifier shipped(){ 
-    require( items[skuCount].state == 2, "The item is not shipped"); 
+    require( items[skuCount].state == State.Shipped, "The item is not shipped"); 
     _;
   }
   modifier received(){ 
-    require( items[skuCount].state == 3, "The item is not received"); 
+    require( items[skuCount].state == State.Received, "The item is not received"); 
     _;
   }
+
 
 
   constructor() public {
@@ -107,11 +105,17 @@ contract SupplyChain {
         owner = msg.sender;
         skuCount=0;
   }
+  
+  function getPrice(uint sku) public view returns (uint price)
+  {
+      return items[sku].price;
+  }
 
   function addItem(string memory _name, uint _price) public returns(bool){
     emit LogForSale(skuCount);
-    items[skuCount] = Item({name: _name, sku: skuCount, price: _price, state: State.ForSale, seller: msg.sender, buyer: address(0)});
     skuCount = skuCount + 1;
+    items[skuCount] = Item({name: _name, sku: skuCount, price: _price, state: State.ForSale, seller: msg.sender, buyer: address(0)});
+    
     return true;
   }
 
@@ -121,21 +125,34 @@ contract SupplyChain {
     if the buyer paid enough, and check the value after the function is called to make sure the buyer is
     refunded any excess ether sent. Remember to call the event associated with this function!*/
 
-  function buyItem(uint sku)
-    public
-  {}
+      function buyItem(uint sku) forSale payable external {
+        require(msg.value >= items[sku].price);
+         items[sku].buyer = msg.sender;
+         items[sku].state = State.Sold;
+         items[sku].seller.transfer(msg.value);
+        //  items[sku].buyer.transfer(msg.value - items[sku].price);
+          emit LogSold(sku);
+    }
 
   /* Add 2 modifiers to check if the item is sold already, and that the person calling this function
   is the seller. Change the state of the item to shipped. Remember to call the event associated with this function!*/
-  function shipItem(uint sku)
+  function shipItem(uint sku) sold 
     public
-  {}
+  {
+      require( msg.sender == items[sku].seller, "Only seller can call this."); 
+      items[sku].state=State.Shipped;
+      emit LogShipped(sku);
+  }
 
   /* Add 2 modifiers to check if the item is shipped already, and that the person calling this function
   is the buyer. Change the state of the item to received. Remember to call the event associated with this function!*/
-  function receiveItem(uint sku)
+  function receiveItem(uint sku) shipped 
     public
-  {}
+  {
+      require( msg.sender == items[sku].buyer, "Only buyer can call this."); 
+       items[sku].state=State.Received;
+      emit LogReceived(sku);
+  }
 
   /* We have these functions completed so we can run tests, just ignore it :) */
   function fetchItem(uint _sku) public view returns (string memory name, uint sku, uint price, uint state, address seller, address buyer) {
